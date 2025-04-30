@@ -22,3 +22,7 @@ pip3 install pandas
 
 ```bash
 python3 -m src.main
+
+## 🛠️ Test unitaire 
+```bash
+ python3 -m unittest discover tests
