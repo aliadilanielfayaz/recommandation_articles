@@ -4,6 +4,9 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import logging # Optionnel: pour afficher des messages d'information
 
+# Imports pour Surprise SVD
+from surprise import SVD
+
 # Configuration simple du logging (optionnel, peut être mis ailleurs)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -127,3 +130,73 @@ def recommend_based_on_user_attributes(df, user1_id, user2_id):
         logging.error(f"Erreur dans recommend_based_on_user_attributes entre {user1_id} et {user2_id}: {e}")
         return []
 
+# --- Fonctions pour Surprise SVD ---
+
+def train_svd_model(data):
+    """
+    Entraîne un modèle SVD sur le jeu de données Surprise.
+
+    Parameters:
+    -----------
+    data : surprise.dataset.DatasetAutoFolds
+        Le jeu de données chargé par Surprise.
+
+    Returns:
+    --------
+    surprise.prediction_algorithms.matrix_factorization.SVD
+        Le modèle SVD entraîné, ou None en cas d'erreur.
+    """
+    try:
+        # Convertir le Dataset en Trainset complet pour l'entraînement
+        trainset = data.build_full_trainset()
+        logging.info("Création du Trainset complet pour SVD...")
+
+        # Instancier et entraîner le modèle SVD
+        algo = SVD()
+        logging.info("Entraînement du modèle SVD...")
+        algo.fit(trainset)
+        logging.info("Entraînement du modèle SVD terminé.")
+        return algo
+
+    except Exception as e:
+        logging.error(f"Erreur lors de l'entraînement du modèle SVD : {e}")
+        return None
+
+def generate_svd_recommendations(model, user_id, items_to_predict, n_recommendations=10):
+    """
+    Génère des recommandations pour un utilisateur avec un modèle Surprise entraîné.
+    Ne recommande que les articles de la liste `items_to_predict`.
+
+    Parameters:
+    -----------
+    model : surprise algorithm instance
+        Le modèle Surprise entraîné (ex: SVD).
+    user_id : int or str
+        L'ID de l'utilisateur (doit correspondre au format dans les données).
+    items_to_predict : list
+        La liste de tous les article_id possibles à considérer pour la recommandation.
+        Important: Idéalement, cette liste ne devrait contenir que les articles
+        que l'utilisateur n'a PAS déjà achetés pour éviter de les recommander.
+    n_recommendations : int, optional
+        Le nombre de recommandations à retourner.
+
+    Returns:
+    --------
+    list
+        Une liste des article_id recommandés pour l'utilisateur.
+    """
+    try:
+        # Prédire les scores pour tous les articles spécifiés pour cet utilisateur
+        predictions = [model.predict(user_id, item_id) for item_id in items_to_predict]
+
+        # Trier les prédictions par score estimé (du plus haut au plus bas)
+        predictions.sort(key=lambda x: x.est, reverse=True)
+
+        # Extraire les N meilleurs article_id
+        top_n_items = [pred.iid for pred in predictions[:n_recommendations]]
+        logging.info(f"Recommandations SVD générées pour {user_id}: {top_n_items}")
+        return top_n_items
+
+    except Exception as e:
+        logging.error(f"Erreur lors de la génération des recommandations SVD pour {user_id}: {e}")
+        return []
