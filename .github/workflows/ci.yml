@@ -33,7 +33,22 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        # Installer flake8 en plus des dépendances du projet
+        pip install flake8
         pip install -r requirements.txt
+
+    # 4. Linter avec flake8
+    - name: Lint with flake8
+      run: |
+        # Arrêter le build si des erreurs ou avertissements Python sont trouvés (erreurs=E, avertissements=W)
+        # Ignorer certaines erreurs si nécessaire (ex: E501 line too long)
+        # --count affiche le nombre total d'erreurs/avertissements
+        # --show-source affiche la ligne de code concernée
+        # --statistics affiche des statistiques
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Exécuter flake8 une deuxième fois pour vérifier le style mais ne pas faire échouer le build pour ça
+        # Vous pouvez ajuster les options --ignore ou --select selon vos préférences
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
     # 4. Exécuter les tests unitaires
     - name: Run tests
