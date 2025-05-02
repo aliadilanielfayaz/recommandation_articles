@@ -1,12 +1,11 @@
-# Nom du workflow
-name: Python CI
+name: Python CI and Docker Push
 
-# Déclencheurs : Exécute le workflow sur push ou pull request vers la branche 'main'
+# Déclencheurs : Exécute le workflow sur push ou pull request vers les branches 'main' et 'presprod'
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "presprod" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "presprod" ]
 
 # Permissions (optionnel mais bonne pratique pour la sécurité)
 permissions:
@@ -14,7 +13,7 @@ permissions:
 
 # Définition des jobs
 jobs:
-  build:
+  build_and_test:
     # Runner : Utilise la dernière version d'Ubuntu
     runs-on: ubuntu-latest
 
@@ -50,7 +49,30 @@ jobs:
         # Vous pouvez ajuster les options --ignore ou --select selon vos préférences
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-    # 4. Exécuter les tests unitaires
+    # 5. Exécuter les tests unitaires
     - name: Run tests
       run: |
         python -m unittest discover tests
+
+  push_to_dockerhub:
+    needs: build_and_test
+    runs-on: ubuntu-latest
+    # Condition : Ne s'exécute que pour les push sur la branche 'presprod'
+    if: github.ref == 'refs/heads/presprod'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: . # Utilise le Dockerfile à la racine
+          push: true # Pousse l'image après la construction
+          tags: ${{ secrets.DOCKER_USERNAME }}/recommandation-api:presprod, ${{ secrets.DOCKER_USERNAME }}/recommandation-api:latest # Tags de l'image
+          # Utilisation de votre nom de secret pour le tag

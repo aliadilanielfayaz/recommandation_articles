@@ -10,6 +10,9 @@ from typing import List # Pour le type hinting de la réponse
 # Assurez-vous que le répertoire parent de 'src' est dans PYTHONPATH ou lancez uvicorn depuis la racine
 from src.recommendation import generate_svd_recommendations
 
+# Import de la fonction de chargement SQLite
+from src.data_processing import load_data_from_sqlite 
+
 # Configuration du logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -22,7 +25,7 @@ app = FastAPI(
 
 # --- Variables globales pour le modèle et les données ---
 MODEL_PATH = "svd_model.pkl"
-DATA_PATH = "data/purchases.csv" # Chemin vers les données d'achat
+# DATA_PATH = "data/purchases.csv" # Chemin vers les données d'achat CSV (Non utilisé)
 model = None
 purchase_df = None
 all_items = set()
@@ -44,24 +47,21 @@ async def load_resources():
         logging.error(f"Le fichier du modèle {MODEL_PATH} n'a pas été trouvé !")
         # Idéalement, l'application ne devrait pas démarrer ou signaler une erreur critique
         # Pour l'instant, on continue mais le modèle sera None
+        model = None # Assurer que model est None si chargement échoue
 
-    # Charger les données d'achat
-    if os.path.exists(DATA_PATH):
-        logging.info(f"Chargement des données d'achat depuis {DATA_PATH}...")
-        try:
-            purchase_df = pd.read_csv(DATA_PATH)
-            # Obtenir l'ensemble de tous les articles uniques
-            if 'article_id' in purchase_df.columns:
-                all_items = set(purchase_df['article_id'].unique())
-                logging.info(f"Données d'achat chargées. {len(all_items)} articles uniques trouvés.")
-            else:
-                logging.error("La colonne 'article_id' est manquante dans les données d'achat.")
-                purchase_df = None # Marquer comme non chargé si colonne manquante
-        except Exception as e:
-            logging.error(f"Erreur lors du chargement des données d'achat : {e}")
-            purchase_df = None
+    # --- Charger les données d'achat depuis SQLite ---
+    logging.info("Chargement des données d'achat depuis SQLite...")
+    purchase_df = load_data_from_sqlite() # Utilise les chemins par défaut
+    if purchase_df is not None:
+        if 'article_id' in purchase_df.columns:
+            all_items = set(purchase_df['article_id'].unique())
+            logging.info(f"Données d'achat chargées depuis SQLite. {len(all_items)} articles uniques trouvés.")
+        else:
+            logging.error("La colonne 'article_id' est manquante dans les données SQLite.")
+            purchase_df = None # Marquer comme non chargé
     else:
-        logging.error(f"Le fichier de données {DATA_PATH} n'a pas été trouvé !")
+        logging.error("Échec du chargement des données d'achat depuis SQLite.")
+        purchase_df = None # Assurer que purchase_df est None
 
 
 @app.get("/")

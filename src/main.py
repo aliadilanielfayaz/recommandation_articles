@@ -1,5 +1,9 @@
 import pandas as pd
-from src.data_processing import load_data, clean_data, create_user_item_matrix, load_data_for_surprise
+# Importation des fonctions de chargement (CSV et SQLite)
+from src.data_processing import (
+    load_data, clean_data, create_user_item_matrix, load_data_for_surprise, # Fonctions CSV (gardées)
+    load_data_from_sqlite, load_data_for_surprise_from_sqlite # Nouvelles fonctions SQLite
+)
 # Importation des fonctions de recommandation existantes et nouvelles
 from src.recommendation import (
     generate_recommendations,
@@ -21,8 +25,9 @@ def main():
     # Assurez-vous que 'purchases.csv' contient 'user_id', 'article_id', 'prix', 'date_achat', 'categorie', 'religion', 'pays'
     # Ou chargez et fusionnez un fichier de profil utilisateur ici.
     logging.info("Chargement et nettoyage des données...")
-    file_path = 'data/purchases.csv' # Chemin vers le fichier de données
-    df = load_data(file_path)
+    # --- Chargement depuis SQLite (Nouvelle méthode) ---
+    # Note: Les anciennes fonctions load_data et load_data_for_surprise existent toujours mais ne sont plus appelées ici.
+    df = load_data_from_sqlite() # Utilise les chemins par défaut définis dans data_processing.py
     if df is None:
         logging.error("Échec du chargement des données initiales. Arrêt du script.")
         return
@@ -60,7 +65,9 @@ def main():
 
     # --- Évaluation et Recommandation avec Surprise/SVD (Nouvelle méthode) ---
     logging.info("Préparation des données pour Surprise...")
-    data_surprise = load_data_for_surprise(file_path)
+    # --- Chargement pour Surprise depuis SQLite (Nouvelle méthode) ---
+    # Note: L'ancienne fonction load_data_for_surprise existe toujours mais n'est plus appelée ici.
+    data_surprise = load_data_for_surprise_from_sqlite() # Utilise les chemins par défaut
 
     if data_surprise:
         # 3.a Évaluation du modèle SVD
