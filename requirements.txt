@@ -6,3 +6,5 @@ scikit-learn
 scikit-surprise
 uvicorn[standard] # Serveur ASGI avec dépendances standard
 fastapi
+plotly
+seaborn # Utile pour d'autres visualisations statistiques

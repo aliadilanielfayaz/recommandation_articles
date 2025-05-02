@@ -8,7 +8,7 @@ from src.recommendation import (
     generate_svd_recommendations
 )
 from src.evaluation import evaluate_model # Importation de la fonction d'évaluation
-from src.visualization import plot_purchase_distribution
+from src.visualization import plot_purchase_distribution,plot_interactive_user_summary
 import logging # Optionnel
 from surprise import SVD # Importation de l'algorithme SVD
 import pickle # Pour sauvegarder/charger le modèle
@@ -112,7 +112,9 @@ def main():
     
     # 4. Visualisation des résultats
     logging.info("Affichage des visualisations...")
-    plot_purchase_distribution(df)
+
+    plot_interactive_user_summary(df) # Appel du nouveau graphique interactif
+    plot_purchase_distribution(df) # Appel de la fonction de visualisation existante
     logging.info("Script terminé.")
 
 if __name__ == "__main__":
