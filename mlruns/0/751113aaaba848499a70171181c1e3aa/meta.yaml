@@ -1,0 +1,15 @@
+artifact_uri: file:///home/unikerp/Documents/recommandation_articles/mlruns/0/751113aaaba848499a70171181c1e3aa/artifacts
+end_time: 1746210549304
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 751113aaaba848499a70171181c1e3aa
+run_name: SVD_Recommendation_Run
+run_uuid: 751113aaaba848499a70171181c1e3aa
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1746210549290
+status: 4
+tags: []
+user_id: unikerp

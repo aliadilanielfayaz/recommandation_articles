@@ -16,6 +16,7 @@ from src.visualization import plot_purchase_distribution,plot_interactive_user_s
 import logging # Optionnel
 from surprise import SVD # Importation de l'algorithme SVD
 import pickle # Pour sauvegarder/charger le modèle
+import mlflow # Importation de MLflow
 
 # Configuration simple du logging (optionnel)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -70,46 +71,68 @@ def main():
     data_surprise = load_data_for_surprise_from_sqlite() # Utilise les chemins par défaut
 
     if data_surprise:
-        # 3.a Évaluation du modèle SVD
-        logging.info("Évaluation du modèle SVD...")
-        svd_model_instance = SVD() # Créer une instance pour l'évaluation
-        avg_precision, avg_recall = evaluate_model(data_surprise, svd_model_instance, k=10)
-        print(f"\n--- Évaluation du modèle SVD (Cross-Validation) ---")
-        print("-------------------------------------------------")
-        print(f"Precision@10 moyenne: {avg_precision:.4f}")
-        print(f"Recall@10 moyenne:    {avg_recall:.4f}")
+        # --- Démarrer une exécution MLflow ---
+        with mlflow.start_run(run_name="SVD_Recommendation_Run"):
+            logging.info("Exécution MLflow démarrée pour l'entraînement et l'évaluation SVD.")
 
-        # 3.b Entraînement du modèle SVD sur l'ensemble des données pour la prédiction
-        logging.info("Entraînement du modèle SVD final sur toutes les données...")
-        svd_model_final = train_svd_model(data_surprise)
+            # Log des paramètres (ici, les paramètres par défaut de SVD et k)
+            mlflow.log_param("model_type", "SVD")
+            mlflow.log_param("k_evaluation", 10)
+            # Si vous personnalisez SVD(n_factors=...), loggez ces paramètres ici
 
-        if svd_model_final:
-            # --- Sauvegarde du modèle SVD entraîné ---
-            model_filename = 'svd_model.pkl'
-            logging.info(f"Sauvegarde du modèle SVD final dans {model_filename}...")
-            with open(model_filename, 'wb') as f:
-                pickle.dump(svd_model_final, f)
-            logging.info("Modèle sauvegardé.")
-            # -----------------------------------------
-            # 3.c Génération de recommandations SVD pour un utilisateur spécifique
-            user_id_svd = 1 # Utilisateur pour la recommandation SVD
-            n_reco_svd = 5 # Nombre de recommandations SVD à générer
+            # 3.a Évaluation du modèle SVD
+            logging.info("Évaluation du modèle SVD...")
+            svd_model_instance = SVD() # Créer une instance pour l'évaluation
+            avg_precision, avg_recall = evaluate_model(data_surprise, svd_model_instance, k=10)
+            print(f"\n--- Évaluation du modèle SVD (Cross-Validation) ---")
+            print("-------------------------------------------------")
+            print(f"Precision@10 moyenne: {avg_precision:.4f}")
+            print(f"Recall@10 moyenne:    {avg_recall:.4f}")
 
-            # Obtenir la liste de tous les articles uniques
-            all_items = df['article_id'].unique()
-            # Obtenir les articles déjà achetés par l'utilisateur cible
-            items_bought = df[df['user_id'] == user_id_svd]['article_id'].unique()
-            # Créer la liste des articles à prédire (tous sauf ceux déjà achetés)
-            items_to_predict = [item for item in all_items if item not in items_bought]
+            # Log des métriques
+            mlflow.log_metric("avg_precision_at_10", avg_precision)
+            mlflow.log_metric("avg_recall_at_10", avg_recall)
 
-            logging.info(f"Génération des recommandations SVD pour l'utilisateur {user_id_svd}...")
-            recommendations_svd = generate_svd_recommendations(svd_model_final, user_id_svd, items_to_predict, n_reco_svd)
+            # 3.b Entraînement du modèle SVD sur l'ensemble des données pour la prédiction
+            logging.info("Entraînement du modèle SVD final sur toutes les données...")
+            svd_model_final = train_svd_model(data_surprise)
 
-            print(f"\n--- Recommandations SVD pour l'utilisateur {user_id_svd} ---")
-            print("-----------------------------------------")
-            print(recommendations_svd)
-        else:
-            logging.error("Échec de l'entraînement du modèle SVD final.")
+            if svd_model_final:
+                # --- Sauvegarde du modèle SVD entraîné (localement) ---
+                model_filename = 'svd_model.pkl'
+                logging.info(f"Sauvegarde du modèle SVD final dans {model_filename}...")
+                with open(model_filename, 'wb') as f:
+                    pickle.dump(svd_model_final, f)
+                logging.info("Modèle sauvegardé localement.")
+                # --- Log du modèle avec MLflow (pour Surprise) ---
+                # mlflow.surprise.log_model(svd_model_final, "svd_model") # Si cela échoue toujours
+                # --- Log de l'artefact pkl (Plan B) ---
+                mlflow.log_artifact(model_filename, artifact_path="svd_model_pkl")
+                logging.info(f"Artefact du modèle SVD ({model_filename}) loggué avec MLflow.")
+                # -----------------------------------------
+
+                # 3.c Génération de recommandations SVD pour un utilisateur spécifique
+                user_id_svd = 1 # Utilisateur pour la recommandation SVD
+                n_reco_svd = 5 # Nombre de recommandations SVD à générer
+                
+                # Obtenir la liste de tous les articles uniques
+                all_items = df['article_id'].unique()
+                # Obtenir les articles déjà achetés par l'utilisateur cible
+                items_bought = df[df['user_id'] == user_id_svd]['article_id'].unique()
+                # Créer la liste des articles à prédire (tous sauf ceux déjà achetés)
+                items_to_predict = [item for item in all_items if item not in items_bought]
+                
+                logging.info(f"Génération des recommandations SVD pour l'utilisateur {user_id_svd}...")
+                recommendations_svd = generate_svd_recommendations(svd_model_final, user_id_svd, items_to_predict, n_reco_svd)
+
+                print(f"\n--- Recommandations SVD pour l'utilisateur {user_id_svd} ---")
+                print("-----------------------------------------")
+                print(recommendations_svd)
+            else:
+                logging.error("Échec de l'entraînement du modèle SVD final.")
+                # On pourrait logger une métrique d'échec dans MLflow ici
+
+            logging.info("Exécution MLflow terminée.")
     else:
         logging.error("Échec du chargement des données pour Surprise.")
 
